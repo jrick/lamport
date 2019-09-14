@@ -82,7 +82,7 @@ func SignHash(messageHash []byte, sk *SecretKey) *Signature {
 		mbyte := messageHash[i>>3]     // byte of current bit
 		bit := mbyte >> (i & 0x07) & 1 // bit=0 or 1
 
-		// copy first hash (when bit=0) or second hash (when bit=1) into bit's signature position
+		// copy first secret (when bit=0) or second (when bit=1) into bit's signature position
 		bitsig := sig[i*32 : i*32+32]
 		first := y[i*64 : i*64+32]
 		second := y[i*64+32 : i*64+64]
@@ -131,7 +131,7 @@ func VerifyHash(messageHash []byte, sig *Signature, pk *PublicKey) bool {
 		expectedHashes = append(expectedHashes, expectedHash...)
 	}
 
-	// Hash each hash in the signature
+	// Hash each secret from the signature
 	sigHashes := make([]byte, 0, 256*32)
 	h, _ := blake2b.New256(nil)
 	for i := 0; i < 256; i++ {
@@ -140,6 +140,6 @@ func VerifyHash(messageHash []byte, sig *Signature, pk *PublicKey) bool {
 		sigHashes = append(sigHashes, h.Sum(nil)...)
 	}
 
-	// Signature is verified if all expected hashes equal each hash the signature's hashes.
+	// Signature is verified if all expected hashes equal each hash the signature's secrets.
 	return bytes.Equal(sigHashes, expectedHashes)
 }
