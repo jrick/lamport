@@ -1,8 +1,8 @@
-// Package lamport implements the lamport signature scheme using the Blake2b-256
+// Package lamport implements the Lamport signature scheme using the Blake2b-256
 // hash function.
 //
-// Lamport signatures are one time use.  A secret key must not sign more than
-// one message.
+// Lamport keys are one time use.  A secret key must not sign more than one
+// message.
 package lamport
 
 import (
@@ -14,33 +14,34 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-// SecretKey is a Lamport signature secret key.  Using a ChaCha20 PRNG, it is
-// expanded to create 256 pairs of secret values (512 32-byte secrets in total)
-// which together comprise the private key.
+// SecretKey is a Lamport signature secret key seed.  Using a ChaCha20 PRNG, it
+// is expanded to create 256 pairs of secret values (512 32-byte secrets in
+// total) which together comprise the private key.
 type SecretKey [32]byte
 
 // PublicKey contains Blake2b-256 hashes of each of the 512 32-byte values of
 // the expanded secret key.
-type PublicKey [2 * 256 * 32]byte
+type PublicKey [512 * 32]byte
 
-// Signature is 256 32-byte values picked from the 512 expanded secret key
-// values.
+// Signature is 256 32-byte values, from the 512 expanded secret key values,
+// picked based on whether each of the 256 message hash bits were a 0 or 1.
 //
 // Because Signature is comprised of half of the values of the expanded secret
-// key, and message verification reveals the pair positions of the signature's
-// hashes, signing can only safely be performed once per message per secret key.
+// key, and message verification reveals the pair positions of these secrets in
+// the secret key, signing can only safely be performed once per message per
+// secret key.
 type Signature [256 * 32]byte
 
-// GenerateKeyPair derives a public and secret key, reading
-// cryptographically-secure randomness from rand.
-func GenerateKeyPair(rand io.Reader) (pk *PublicKey, sk *SecretKey, err error) {
+// GenerateKey derives a public and secret key, reading cryptographically-secure
+// randomness from rand.
+func GenerateKey(rand io.Reader) (pk *PublicKey, sk *SecretKey, err error) {
 	sk = new(SecretKey)
 	_, err = rand.Read(sk[:])
 	if err != nil {
 		return
 	}
 
-	y := new([2 * 256 * 32]byte)
+	y := new([512 * 32]byte)
 	rng := chacha20prng.New(sk[:], 0)
 	rng.Read(y[:]) // never errors
 
@@ -53,25 +54,20 @@ func GenerateKeyPair(rand io.Reader) (pk *PublicKey, sk *SecretKey, err error) {
 	return
 }
 
-// Sign signs the message read from r.
-func Sign(r io.Reader, sk *SecretKey) (*Signature, error) {
-	h, _ := blake2b.New256(nil)
-	_, err := io.Copy(h, r)
-	if err != nil {
-		return nil, err
-	}
-	messageHash := h.Sum(nil)
-	return SignHash(messageHash, sk), nil
+// Sign signs message with sk.
+func Sign(sk *SecretKey, message []byte) *Signature {
+	messageHash := blake2b.Sum256(message)
+	return SignHash(sk, messageHash[:])
 }
 
 // SignHash signs a 32-byte message hash.
-// This will panic if the message hash is not exactly 32 bytes.
-func SignHash(messageHash []byte, sk *SecretKey) *Signature {
+// It will panic if the message hash is not exactly 32 bytes.
+func SignHash(sk *SecretKey, messageHash []byte) *Signature {
 	if len(messageHash) != 32 {
 		panic("messageHash not 32 bytes")
 	}
 
-	y := new([2 * 256 * 32]byte)
+	y := new([512 * 32]byte)
 	rng := chacha20prng.New(sk[:], 0)
 	rng.Read(y[:]) // never errors
 
@@ -93,23 +89,17 @@ func SignHash(messageHash []byte, sk *SecretKey) *Signature {
 	return sig
 }
 
-// Verify verifies whether sig is a valid signature created by the secret key of
-// pk for of the message read from r.
-func Verify(r io.Reader, sig *Signature, pk *PublicKey) (bool, error) {
-	h, _ := blake2b.New256(nil)
-	_, err := io.Copy(h, r)
-	if err != nil {
-		return false, err
-	}
-	messageHash := h.Sum(nil)
-	return VerifyHash(messageHash, sig, pk), nil
+// Verify checks whether sig is a valid signature created by the secret key of
+// pk for message.
+func Verify(pk *PublicKey, message []byte, sig *Signature) bool {
+	messageHash := blake2b.Sum256(message)
+	return VerifyHash(pk, messageHash[:], sig)
 }
 
-// VerifyHash verifies whether sig is a valid signature created by the secret
-// key of pk for a 32-byte message hash.
-//
-// Panics if the message hash is not exactly 32 bytes.
-func VerifyHash(messageHash []byte, sig *Signature, pk *PublicKey) bool {
+// VerifyHash checks whether sig is a valid signature created by the secret key
+// of pk for a 32-byte message hash.
+// It will panics if the message hash is not exactly 32 bytes.
+func VerifyHash(pk *PublicKey, messageHash []byte, sig *Signature) bool {
 	if len(messageHash) != 32 {
 		panic("messageHash not 32 bytes")
 	}

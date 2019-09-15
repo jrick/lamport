@@ -13,8 +13,8 @@ var (
 	messageHash = blake2b.Sum256(message)
 	seed        = make([]byte, 32)
 	rng         = chacha20prng.New(seed, 0)
-	pk, sk, _   = GenerateKeyPair(rng)
-	sig         = SignHash(messageHash[:], sk)
+	pk, sk, _   = GenerateKey(rng)
+	sig         = SignHash(sk, messageHash[:])
 )
 
 // TestSignatureConstruction recreates a signature in an obvious but not
@@ -47,16 +47,16 @@ func TestSignatureConstruction(t *testing.T) {
 }
 
 func TestVerify(t *testing.T) {
-	if !VerifyHash(messageHash[:], sig, pk) {
+	if !VerifyHash(pk, messageHash[:], sig) {
 		t.Fatal("correct signature fails verify")
 	}
 }
 
 func BenchmarkSignVerifyHash(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		sig := SignHash(messageHash[:], sk)
-		if !VerifyHash(messageHash[:], sig, pk) {
-			panic("verify")
+		sig := SignHash(sk, messageHash[:])
+		if !VerifyHash(pk, messageHash[:], sig) {
+			log.Fatal("verify")
 		}
 	}
 }
