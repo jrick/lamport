@@ -28,12 +28,11 @@ func TestSignatureConstruction(t *testing.T) {
 		mbyte := messageHash[i]
 		for j := 0; j < 8; j++ {
 			bitIsOne := (mbyte>>j)&1 == 1
-			t.Logf("i=%d j=%d mbyte=%08b %v", i, j, mbyte, bitIsOne)
-			if !bitIsOne {
-				expected = append(expected, y[(i*8+j)*64:(i*8+j)*64+32]...)
-			} else {
-				expected = append(expected, y[(i*8+j)*64+32:(i*8+j)*64+64]...)
+			off := (i*8 + j) * 64
+			if bitIsOne {
+				off += 32
 			}
+			expected = append(expected, y[off:off+32]...)
 		}
 	}
 
