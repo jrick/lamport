@@ -56,7 +56,7 @@ func BenchmarkSignVerifyHash(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		sig := SignHash(sk, messageHash[:])
 		if !VerifyHash(pk, messageHash[:], sig) {
-			log.Fatal("verify")
+			b.Fatal("verify")
 		}
 	}
 }
