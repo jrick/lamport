@@ -45,11 +45,9 @@ func GenerateKeyPair(rand io.Reader) (pk *PublicKey, sk *SecretKey, err error) {
 	rng.Read(y[:]) // never errors
 
 	pk = new(PublicKey)
-	h, _ := blake2b.New256(nil)
 	for i := 0; i < 512; i++ {
-		h.Reset()
-		h.Write(y[i*32 : i*32+32])
-		copy(pk[i*32:i*32+32], h.Sum(nil))
+		h := blake2b.Sum256(y[i*32 : i*32+32])
+		copy(pk[i*32:i*32+32], h[:])
 	}
 
 	return
@@ -133,11 +131,9 @@ func VerifyHash(messageHash []byte, sig *Signature, pk *PublicKey) bool {
 
 	// Hash each secret from the signature
 	sigHashes := make([]byte, 0, 256*32)
-	h, _ := blake2b.New256(nil)
 	for i := 0; i < 256; i++ {
-		h.Reset()
-		h.Write(sig[i*32 : i*32+32])
-		sigHashes = append(sigHashes, h.Sum(nil)...)
+		h := blake2b.Sum256(sig[i*32 : i*32+32])
+		sigHashes = append(sigHashes, h[:]...)
 	}
 
 	// Signature is verified if all expected hashes equal each hash the signature's secrets.
