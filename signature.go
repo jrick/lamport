@@ -98,7 +98,7 @@ func Verify(pk *PublicKey, message []byte, sig *Signature) bool {
 
 // VerifyHash checks whether sig is a valid signature created by the secret key
 // of pk for a 32-byte message hash.
-// It will panics if the message hash is not exactly 32 bytes.
+// It will panic if the message hash is not exactly 32 bytes.
 func VerifyHash(pk *PublicKey, messageHash []byte, sig *Signature) bool {
 	if len(messageHash) != 32 {
 		panic("messageHash not 32 bytes")
